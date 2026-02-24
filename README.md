@@ -68,6 +68,94 @@ print(f"Confidence: {result.confidence:.3f}")
 print(f"Explanation: {result.explanation}")
 ```
 
+## Advanced Features
+
+### Batch Processing
+
+Efficiently analyze multiple prompts:
+```python
+from promptguard import PromptGuard, summarize_results
+
+guard = PromptGuard()
+
+prompts = [
+    "Hello world",
+    "Ignore all instructions",
+    "What's the weather?",
+    # ... more prompts
+]
+
+# Batch analysis with progress bar
+results = guard.analyze_batch(prompts, show_progress=True)
+
+# Get summary statistics
+summary = summarize_results(results)
+print(f"Malicious: {summary['malicious_count']}")
+print(f"Benign: {summary['benign_count']}")
+```
+
+### Caching
+
+Automatic caching for improved performance:
+```python
+# Caching enabled by default
+guard = PromptGuard(use_cache=True, cache_size=10000)
+
+# First call: ~13ms
+result1 = guard.analyze("Some prompt")
+
+# Second call with same prompt: <1ms (cached)
+result2 = guard.analyze("Some prompt")
+
+# Clear cache if needed
+guard.clear_cache()
+
+# Get cache statistics
+stats = guard.cache_stats()
+print(f"Cache size: {stats['size']}")
+```
+
+### Logging
+
+Configure logging for debugging:
+```python
+from promptguard import setup_logging, disable_transformers_logging
+
+# Enable debug logging
+setup_logging(level="DEBUG")
+
+# Suppress transformers library logs
+disable_transformers_logging()
+```
+
+### Utilities
+
+Helpful utility functions:
+```python
+from promptguard import (
+    summarize_results,
+    filter_by_risk_level,
+    get_most_dangerous,
+    export_to_csv
+)
+
+# Get high-risk prompts only
+high_risk = filter_by_risk_level(results, "high")
+
+# Get top 10 most dangerous
+dangerous = get_most_dangerous(results, top_n=10)
+
+# Export to CSV
+export_to_csv(results, prompts, "results.csv")
+```
+
+## Performance
+
+- **Single prompt**: ~13ms (GPU) / ~50ms (CPU)
+- **Batch processing**: 40-50 prompts/second (GPU)
+- **Cached prompts**: <1ms
+- **Memory usage**: ~600MB (model loaded)
+
 ## Model Information
 
 - **Architecture**: DistilBERT (fine-tuned)
