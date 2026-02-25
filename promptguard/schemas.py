@@ -28,6 +28,12 @@ class Sentiment(str, Enum):
     NEUTRAL = "neutral"
     NEGATIVE = "negative"
 
+class SanitizationStrategy(str, Enum):
+    """Sanitization strategy levels."""
+    CONSERVATIVE = "conservative"
+    BALANCED = "balanced"
+    MINIMAL = "minimal"
+
 
 @dataclass
 class RiskScore:

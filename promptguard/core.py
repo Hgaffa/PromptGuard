@@ -1,6 +1,6 @@
 """Core PromptGuard classifier."""
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from tqdm import tqdm
 import torch
 from .analyzers import (
@@ -9,6 +9,10 @@ from .analyzers import (
     KeywordExtractor,
     AttackPatternDetector,
     Intent
+)
+from .sanitizers import (
+    PromptSanitizer,
+    SanitizationStrategy,
 )
 from .models import ModelLoader
 from .schemas import RiskScore, RiskLevel
@@ -33,6 +37,7 @@ class PromptGuard:
         cache_size: int = 10000,
         cache_ttl: Optional[int] = 3600,
         enable_analysis: bool = True,
+        enable_sanitization: bool = True,
         **kwargs
     ):
         """
@@ -77,6 +82,14 @@ class PromptGuard:
         else:
             logger.info("Analysis features disabled")
 
+        self.enable_sanitization = enable_sanitization
+        if enable_sanitization:
+            self.sanitizer = PromptSanitizer()
+            logger.info("Sanitization features enabled")
+        else:
+            self.sanitizer = None
+            logger.info("Sanitization features disabled")
+
         # Initialize model loader
         self.model_loader = ModelLoader(self.config)
 
@@ -84,6 +97,77 @@ class PromptGuard:
         self.model, self.tokenizer = self.model_loader.load()
 
         logger.info("PromptGuard initialized with model: %s", model_name)
+
+    def sanitize(
+        self,
+        prompt: str,
+        strategy: SanitizationStrategy = SanitizationStrategy.BALANCED,
+        analyze_after: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Sanitize a potentially malicious prompt.
+
+        Args:
+            prompt: Prompt to sanitize
+            strategy: Sanitization strategy to use
+            analyze_after: Whether to analyze sanitized prompt
+
+        Returns:
+            Dict with sanitization result and optional analysis
+        """
+        if not self.enable_sanitization or self.sanitizer is None:
+            raise ValueError("Sanitization is not enabled")
+
+        # Analyze original prompt
+        original_analysis = self.analyze(prompt)
+
+        # Sanitize
+        sanitization = self.sanitizer.sanitize(prompt, strategy)
+
+        # Analyze sanitized prompt if requested
+        sanitized_analysis = None
+        if analyze_after and sanitization.was_modified:
+            sanitized_analysis = self.analyze(sanitization.sanitized)
+
+        return {
+            'sanitization': sanitization,
+            'original_analysis': original_analysis,
+            'sanitized_analysis': sanitized_analysis,
+            'risk_before': original_analysis.probability,
+            'risk_after': sanitized_analysis.probability if sanitized_analysis else None,
+            'risk_reduction': original_analysis.probability - (
+                sanitized_analysis.probability if sanitized_analysis else original_analysis.probability
+            )
+        }
+
+    def sanitize_if_malicious(
+        self,
+        prompt: str,
+        strategy: SanitizationStrategy = SanitizationStrategy.BALANCED
+    ) -> Tuple[str, bool]:
+        """
+        Sanitize prompt only if it's detected as malicious.
+
+        Args:
+            prompt: Prompt to check and potentially sanitize
+            strategy: Sanitization strategy if needed
+
+        Returns:
+            Tuple of (potentially_sanitized_prompt, was_sanitized)
+        """
+        if not self.enable_sanitization or self.sanitizer is None:
+            raise ValueError("Sanitization is not enabled")
+
+        # Check if malicious
+        analysis = self.analyze(prompt)
+
+        if analysis.is_malicious:
+            # Sanitize
+            sanitization = self.sanitizer.sanitize(prompt, strategy)
+            return sanitization.sanitized, True
+        else:
+            # Return unchanged
+            return prompt, False
 
     def _perform_analysis(
         self,

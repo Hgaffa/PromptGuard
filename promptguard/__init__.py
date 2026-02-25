@@ -27,6 +27,14 @@ from .analyzers import (
     AttackPatternDetector
 )
 
+# Import sanitizers
+from .sanitizers import (
+    PromptSanitizer,
+    AdvancedSanitizer,
+    SanitizationResult,
+    SanitizationStrategy
+)
+
 # Import utilities
 from .utils import (
     summarize_results,
@@ -57,6 +65,12 @@ __all__ = [
     "IntentClassifier",
     "KeywordExtractor",
     "AttackPatternDetector",
+    
+    # Sanitizers
+    "PromptSanitizer",
+    "AdvancedSanitizer",
+    "SanitizationResult",
+    "SanitizationStrategy",
 
     # Exceptions
     "PromptGuardError",
