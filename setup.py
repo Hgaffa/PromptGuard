@@ -34,8 +34,9 @@ setup(
     install_requires=requirements,
     extras_require={
         "dev": [
-            "pytest>=7.0.0",
-            "pytest-cov>=4.0.0",
+            "pytest>=7.4.0",
+            "pytest-cov>=4.1.0",
+            "pytest-mock>=3.11.0",
             "black>=23.0.0",
             "flake8>=6.0.0",
             "mypy>=1.0.0",

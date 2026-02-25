@@ -43,3 +43,44 @@ Homepage = "https://github.com/Hgaffa/promptguard"
 Documentation = "https://github.com/Hgaffa/promptguard#readme"
 Repository = "https://github.com/Hgaffa/promptguard"
 "Bug Tracker" = "https://github.com/Hgaffa/promptguard/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--cov=promptguard",
+    "--cov-report=html",
+    "--cov-report=term-missing",
+    "--cov-fail-under=80"
+]
+
+[tool.coverage.run]
+source = ["promptguard"]
+omit = [
+    "*/tests/*",
+    "*/examples/*",
+    "*/__pycache__/*"
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false

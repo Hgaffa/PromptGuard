@@ -15,3 +15,11 @@ spacy>=3.0.0
 
 # Utilities
 pandas>=2.0.0
+
+# Development dependencies
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0

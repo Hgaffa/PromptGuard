@@ -79,7 +79,7 @@ class PromptSanitizer:
     # Pattern definitions for each strategy level
     _CRITICAL_PATTERNS = [
         # Direct instruction override
-        (r"ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions?|rules?|prompts?)", ""),
+        (r"ignore\s+(all\s+)?(previous|prior|above|earlier|all)\s+(instructions?|rules?|prompts?)", ""),
         (r"forget\s+(everything|all|prior|previous|instructions?)", ""),
         (r"disregard\s+(previous|prior|above|all)\s+(instructions?|context|rules?)", ""),
 
