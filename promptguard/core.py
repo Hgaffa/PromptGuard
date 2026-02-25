@@ -1,15 +1,20 @@
 """Core PromptGuard classifier."""
 import logging
-from typing import Union, List, Optional, Iterator
+from typing import Any, Dict, List, Optional
 from tqdm import tqdm
 import torch
-from .cache import PromptCache
-import numpy as np
-
-from .config import PromptGuardConfig
+from .analyzers import (
+    SentimentAnalyzer,
+    IntentClassifier,
+    KeywordExtractor,
+    AttackPatternDetector,
+    Intent
+)
 from .models import ModelLoader
 from .schemas import RiskScore, RiskLevel
 from .exceptions import ValidationError, InferenceError
+from .cache import PromptCache
+from .config import PromptGuardConfig
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +32,21 @@ class PromptGuard:
         use_cache: bool = True,
         cache_size: int = 10000,
         cache_ttl: Optional[int] = 3600,
+        enable_analysis: bool = True,
         **kwargs
     ):
         """
         Initialize PromptGuard classifier.
+
+        Args:
+            model_name: HuggingFace model identifier
+            threshold: Classification threshold (0.0 to 1.0)
+            device: Device for inference ('cuda', 'cpu', or 'auto')
+            use_cache: Enable caching of results
+            cache_size: Maximum number of cached entries
+            cache_ttl: Cache time-to-live in seconds (None for no expiration)
+            enable_analysis: Enable sentiment/intent analysis
+            **kwargs: Additional configuration options
         """
         # Create configuration
         self.config = PromptGuardConfig(
@@ -50,6 +66,17 @@ class PromptGuard:
             self.cache = None
             logger.info("Caching disabled")
 
+        # Initialize analyzers
+        self.enable_analysis = enable_analysis
+        if enable_analysis:
+            self.sentiment_analyzer = SentimentAnalyzer()
+            self.intent_classifier = IntentClassifier()
+            self.keyword_extractor = KeywordExtractor()
+            self.attack_detector = AttackPatternDetector()
+            logger.info("Analysis features enabled")
+        else:
+            logger.info("Analysis features disabled")
+
         # Initialize model loader
         self.model_loader = ModelLoader(self.config)
 
@@ -57,6 +84,74 @@ class PromptGuard:
         self.model, self.tokenizer = self.model_loader.load()
 
         logger.info("PromptGuard initialized with model: %s", model_name)
+
+    def _perform_analysis(
+        self,
+        prompt: str,
+        probability: float,
+        is_batch: bool = False
+    ) -> RiskScore:
+        """
+        Perform analysis on a single prompt (shared by analyze and analyze_batch).
+
+        Args:
+            prompt: The prompt text
+            probability: Malicious probability from model
+            is_batch: Whether this is from batch processing
+
+        Returns:
+            Complete RiskScore with all analysis
+        """
+        # Classify
+        is_malicious = probability >= self.config.threshold
+
+        # Determine risk level
+        risk_level = self._get_risk_level(probability)
+
+        # Calculate confidence
+        confidence = abs(probability - 0.5) * 2
+
+        # Perform additional analysis if enabled
+        metadata = {
+            "model": self.config.model_name,
+            "threshold": self.config.threshold,
+            "prompt_length": len(prompt)
+        }
+
+        if is_batch:
+            metadata['batch_processed'] = True
+
+        if self.enable_analysis:
+            # Sentiment analysis
+            sentiment_result = self.sentiment_analyzer.analyze(prompt)
+            metadata['sentiment'] = sentiment_result
+
+            # Intent classification
+            intent_result = self.intent_classifier.classify(prompt)
+            metadata['intent'] = intent_result
+
+            # Extract keywords if malicious or suspicious
+            if is_malicious or probability > 0.3:
+                keywords = self.keyword_extractor.extract(prompt)
+                metadata['keywords'] = keywords
+
+                # Detect attack patterns
+                attack_patterns = self.attack_detector.detect(prompt)
+                metadata['attack_patterns'] = attack_patterns
+
+        # Generate enhanced explanation
+        explanation = self._generate_explanation(
+            prompt, probability, is_malicious, metadata if self.enable_analysis else None
+        )
+
+        return RiskScore(
+            is_malicious=is_malicious,
+            probability=float(probability),
+            risk_level=risk_level,
+            confidence=float(confidence),
+            explanation=explanation,
+            metadata=metadata
+        )
 
     def analyze(self, prompt: str) -> RiskScore:
         """
@@ -80,32 +175,9 @@ class PromptGuard:
             # Get probability
             probability = self._predict_single(prompt)
 
-            # Classify
-            is_malicious = probability >= self.config.threshold
-
-            # Determine risk level
-            risk_level = self._get_risk_level(probability)
-
-            # Calculate confidence
-            # Confidence is how far the probability is from the decision boundary (0.5)
-            confidence = abs(probability - 0.5) * 2  # Scale to 0-1
-
-            # Generate explanation
-            explanation = self._generate_explanation(
-                prompt, probability, is_malicious)
-
-            result = RiskScore(
-                is_malicious=is_malicious,
-                probability=float(probability),
-                risk_level=risk_level,
-                confidence=float(confidence),
-                explanation=explanation,
-                metadata={
-                    "model": self.config.model_name,
-                    "threshold": self.config.threshold,
-                    "prompt_length": len(prompt)
-                }
-            )
+            # Perform analysis (now uses shared method)
+            result = self._perform_analysis(
+                prompt, probability, is_batch=False)
 
             # Cache result
             if self.use_cache and self.cache is not None:
@@ -130,7 +202,7 @@ class PromptGuard:
         else:
             logger.warning("Caching is not enabled")
 
-    def cache_stats(self) -> Optional[dict[str, any]]:
+    def cache_stats(self) -> Optional[Dict[str, Any]]:
         """
         Get cache statistics
         """
@@ -177,36 +249,90 @@ class PromptGuard:
         self,
         prompt: str,
         probability: float,
-        is_malicious: bool
+        is_malicious: bool,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> str:
         """
-        Generate human-readable explanation.
+        Generate human-readable explanation with evidence.
+
+        Args:
+            prompt: The analyzed prompt
+            probability: Malicious probability
+            is_malicious: Classification result
+            metadata: Additional analysis metadata
+
+        Returns:
+            Explanation string
         """
         if is_malicious:
+            explanation_parts = []
+
+            # Base explanation
             if probability > 0.9:
-                return (
+                explanation_parts.append(
                     f"This prompt is highly likely to be malicious "
-                    f"({probability:.1%} confidence). It shows strong "
-                    f"indicators of prompt injection or jailbreak attempts."
+                    f"({probability:.1%} confidence)."
                 )
             elif probability > 0.7:
-                return (
+                explanation_parts.append(
                     f"This prompt appears to be malicious "
-                    f"({probability:.1%} confidence). It contains "
-                    f"patterns associated with prompt manipulation."
+                    f"({probability:.1%} confidence)."
                 )
             else:
-                return (
+                explanation_parts.append(
                     f"This prompt is classified as malicious "
-                    f"({probability:.1%} confidence). Consider reviewing "
-                    f"it for potential security issues."
+                    f"({probability:.1%} confidence)."
                 )
+
+            # Add evidence from metadata
+            if metadata:
+                evidence = []
+
+                # Intent evidence
+                if 'intent' in metadata:
+                    intent_data = metadata['intent']
+                    if intent_data['intent'] in [Intent.JAILBREAK, Intent.INJECTION]:
+                        evidence.append(
+                            f"Detected {intent_data['intent'].value} attempt")
+
+                # Attack patterns
+                if 'attack_patterns' in metadata:
+                    attack_data = metadata['attack_patterns']
+                    if attack_data['has_attack_patterns']:
+                        attack_types = ', '.join(attack_data['attack_types'])
+                        evidence.append(f"Attack patterns: {attack_types}")
+
+                # Keywords
+                if 'keywords' in metadata and metadata['keywords']:
+                    keywords_str = ', '.join(
+                        f"'{kw}'" for kw in metadata['keywords'][:3])
+                    evidence.append(f"Suspicious keywords: {keywords_str}")
+
+                # Sentiment
+                if 'sentiment' in metadata:
+                    sentiment_data = metadata['sentiment']
+                    if sentiment_data['is_aggressive']:
+                        evidence.append("Aggressive tone detected")
+
+                if evidence:
+                    explanation_parts.append(
+                        " Evidence: " + "; ".join(evidence) + ".")
+
+            return " ".join(explanation_parts)
         else:
-            return (
+            # Benign explanation
+            explanation = (
                 f"This prompt appears benign "
                 f"({(1-probability):.1%} confidence). "
                 f"No significant security concerns detected."
             )
+
+            # Add intent info if available
+            if metadata and 'intent' in metadata:
+                intent_data = metadata['intent']
+                explanation += f" Intent: {intent_data['description']}"
+
+            return explanation
 
     def classify(self, prompt: str, threshold: Optional[float] = None) -> bool:
         """
@@ -224,7 +350,7 @@ class PromptGuard:
         prompts: List[str],
         batch_size: Optional[int] = None,
         show_progress: bool = True
-    ) -> List[RiskScore]:
+    ) -> List[Optional[RiskScore]]:
         """
         Analyze multiple prompts efficiently in batches,
         using cache when enabled.
@@ -281,26 +407,8 @@ class PromptGuard:
                 prompt = batch_prompts[j]
                 original_index = uncached_indices[i + j]
 
-                is_malicious = prob >= self.config.threshold
-                risk_level = self._get_risk_level(prob)
-                confidence = abs(prob - 0.5) * 2
-                explanation = self._generate_explanation(
-                    prompt, prob, is_malicious
-                )
-
-                result = RiskScore(
-                    is_malicious=is_malicious,
-                    probability=float(prob),
-                    risk_level=risk_level,
-                    confidence=float(confidence),
-                    explanation=explanation,
-                    metadata={
-                        "model": self.config.model_name,
-                        "threshold": self.config.threshold,
-                        "prompt_length": len(prompt),
-                        "batch_processed": True
-                    }
-                )
+                # Use shared analysis method (NOW INCLUDES ALL FEATURES!)
+                result = self._perform_analysis(prompt, prob, is_batch=True)
 
                 # Store result
                 final_results[original_index] = result

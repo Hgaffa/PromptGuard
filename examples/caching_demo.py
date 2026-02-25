@@ -28,7 +28,10 @@ def main():
     result2 = guard_cached.analyze(prompt)
     time2 = time.time() - start
     print(f"Second analysis: {time2*1000:.2f}ms (cached)")
-    print(f"Speedup: {time1/time2:.0f}x faster")
+    if time2 > 0:
+        print(f"Speedup: {time1/time2:.0f}x faster")
+    else:
+        print("Speedup: ∞ (cached execution < timer resolution)")
 
     # Test without cache
     print("\n2. WITHOUT CACHING")
@@ -51,7 +54,10 @@ def main():
     print("\n" + "="*60)
     print("CONCLUSION")
     print("="*60)
-    print(f"Caching provides {time1/time2:.0f}x speedup for repeated prompts")
+    if time2 > 0:
+        print(f"Caching provides {time1/time2:.0f}x speedup for repeated prompts")
+    else:
+        print(f"Caching provides ∞ speedup for repeated prompts (cached execution < timer resolution)")
     print("Recommended for production use with repeated queries")
 
 

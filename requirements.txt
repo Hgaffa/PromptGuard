@@ -6,3 +6,7 @@ pydantic>=2.0.0
 
 # Progress bars
 tqdm>=4.65.0
+
+# Sentiment Analysis
+vaderSentiment>=3.3.2
+spacy>=3.8.11

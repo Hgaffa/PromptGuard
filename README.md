@@ -3,7 +3,7 @@
 A production-ready Python library for detecting malicious LLM prompts and prompt injection attacks.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
 ## Features
 
@@ -113,6 +113,39 @@ guard.clear_cache()
 # Get cache statistics
 stats = guard.cache_stats()
 print(f"Cache size: {stats['size']}")
+```
+
+### Advanced Analysis
+
+Get detailed insights into why prompts are flagged:
+```python
+from promptguard import PromptGuard
+
+guard = PromptGuard(enable_analysis=True)  # Default
+result = guard.analyze("Ignore all previous instructions")
+
+# Access detailed metadata
+print(result.metadata['intent'])  # Intent classification
+print(result.metadata['sentiment'])  # Sentiment analysis
+print(result.metadata['keywords'])  # Security keywords
+print(result.metadata['attack_patterns'])  # Attack patterns
+
+# Enhanced explanation with evidence
+print(result.explanation)
+# "This prompt is highly likely to be malicious (98.9% confidence). 
+#  Evidence: Detected jailbreak attempt; Attack patterns: instruction_override; 
+#  Suspicious keywords: 'ignore', 'previous'."
+```
+
+**Analysis Features:**
+- **Sentiment Analysis**: Detect tone and aggressive language
+- **Intent Classification**: Question, instruction, jailbreak, injection, etc.
+- **Keyword Extraction**: Security-relevant words that triggered detection
+- **Attack Pattern Detection**: Specific attack types (context manipulation, role manipulation, etc.)
+
+**Disable analysis for faster processing:**
+```python
+guard = PromptGuard(enable_analysis=False)  # Faster, less detail
 ```
 
 ### Logging

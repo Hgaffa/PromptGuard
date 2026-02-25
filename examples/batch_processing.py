@@ -1,9 +1,6 @@
 """Example: Batch processing with PromptGuard."""
-
-from promptguard import PromptGuard, summarize_results, setup_logging
 import time
-
-# Setup logging
+from promptguard import PromptGuard, summarize_results, setup_logging
 setup_logging(level="INFO")
 
 
@@ -12,8 +9,8 @@ def main():
     print("PromptGuard - Batch Processing Example")
     print("="*60)
 
-    # Initialize
-    guard = PromptGuard(use_cache=True)
+    # Initialize with analysis enabled
+    guard = PromptGuard(use_cache=True, enable_analysis=True)
 
     # Create test dataset
     test_prompts = [
@@ -54,6 +51,29 @@ def main():
     print(f"  High risk:         {summary['high_risk_count']}")
     print(f"  Medium risk:       {summary['medium_risk_count']}")
     print(f"  Low risk:          {summary['low_risk_count']}")
+
+    # NEW: Verify analysis features are present
+    print("\n" + "="*60)
+    print("ANALYSIS FEATURES CHECK")
+    print("="*60)
+
+    # Check first malicious result
+    malicious_results = [r for r in results if r and r.is_malicious]
+    if malicious_results:
+        sample = malicious_results[0]
+        print(f"\nSample malicious prompt analysis:")
+        print(
+            f"  Has sentiment? {'✓' if 'sentiment' in sample.metadata else '✗'}")
+        print(f"  Has intent? {'✓' if 'intent' in sample.metadata else '✗'}")
+        print(
+            f"  Has keywords? {'✓' if 'keywords' in sample.metadata else '✗'}")
+        print(
+            f"  Has attack patterns? {'✓' if 'attack_patterns' in sample.metadata else '✗'}")
+
+        if 'intent' in sample.metadata:
+            print(f"\n  Intent: {sample.metadata['intent']['intent'].value}")
+        if 'keywords' in sample.metadata:
+            print(f"  Keywords: {', '.join(sample.metadata['keywords'])}")
 
     # Test cache performance
     print("\n" + "="*60)

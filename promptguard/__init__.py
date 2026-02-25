@@ -8,7 +8,7 @@ __email__ = "your.email@example.com"
 
 # Import main classes
 from .core import PromptGuard
-from .schemas import RiskScore, RiskLevel
+from .schemas import RiskScore, RiskLevel, Intent, Sentiment  # Added Intent, Sentiment
 from .config import PromptGuardConfig
 from .cache import PromptCache
 from .exceptions import (
@@ -17,6 +17,14 @@ from .exceptions import (
     ValidationError,
     ConfigurationError,
     InferenceError,
+)
+
+# Import analyzers
+from .analyzers import (
+    SentimentAnalyzer,
+    IntentClassifier,
+    KeywordExtractor,
+    AttackPatternDetector
 )
 
 # Import utilities
@@ -37,10 +45,18 @@ __all__ = [
     "PromptGuard",
     "RiskScore",
     "RiskLevel",
+    "Intent",
+    "Sentiment",
     "PromptGuardConfig",
 
     # Cache
     "PromptCache",
+
+    # Analyzers
+    "SentimentAnalyzer",
+    "IntentClassifier",
+    "KeywordExtractor",
+    "AttackPatternDetector",
 
     # Exceptions
     "PromptGuardError",

@@ -12,6 +12,23 @@ class RiskLevel(str, Enum):
     HIGH = "high"
 
 
+class Intent(str, Enum):
+    """Prompt intent classification."""
+    QUESTION = "question"
+    INSTRUCTION = "instruction"
+    CONVERSATION = "conversation"
+    JAILBREAK = "jailbreak"
+    INJECTION = "injection"
+    UNKNOWN = "unknown"
+
+
+class Sentiment(str, Enum):
+    """Sentiment classification."""
+    POSITIVE = "positive"
+    NEUTRAL = "neutral"
+    NEGATIVE = "negative"
+
+
 @dataclass
 class RiskScore:
     """
@@ -23,7 +40,7 @@ class RiskScore:
         risk_level: Categorized risk level (low/medium/high)
         confidence: Model confidence in the prediction
         explanation: Human-readable explanation of the classification
-        metadata: Additional analysis metadata
+        metadata: Additional analysis metadata (sentiment, intent, keywords, etc.)
     """
     is_malicious: bool
     probability: float
