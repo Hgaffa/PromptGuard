@@ -7,7 +7,7 @@ name = "promptguard"
 version = "0.1.0"
 description = "A production-ready library for detecting malicious LLM prompts and prompt injection attacks"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 license = {text = "MIT"}
 keywords = ["prompt-injection", "llm-security", "ai-safety", "nlp"]
 authors = [
@@ -80,7 +80,7 @@ line-length = 88
 target-version = ['py38', 'py39', 'py310', 'py311']
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false

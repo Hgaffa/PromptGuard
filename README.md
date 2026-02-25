@@ -277,7 +277,7 @@ guard = PromptGuard(config=config)
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.12+
 - PyTorch 2.0+
 - Transformers 4.35+
 
