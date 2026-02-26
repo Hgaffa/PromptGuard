@@ -8,14 +8,16 @@ from .analyzers import (
     IntentClassifier,
     KeywordExtractor,
     AttackPatternDetector,
-    Intent
 )
-from .sanitizers import (
-    PromptSanitizer,
-    SanitizationStrategy,
-)
+from .sanitizers import PromptSanitizer
 from .models import ModelLoader
-from .schemas import RiskScore, RiskLevel
+from .schemas import (
+    RiskScore,
+    RiskLevel,
+    Intent,
+    SanitizationStrategy,
+    SanitizeResponse,
+)
 from .exceptions import ValidationError, InferenceError
 from .cache import PromptCache
 from .config import PromptGuardConfig
@@ -40,18 +42,26 @@ class PromptGuard:
         enable_sanitization: bool = True,
         **kwargs
     ):
-        """
-        Initialize PromptGuard classifier.
+        """Initialise the PromptGuard classifier.
 
         Args:
-            model_name: HuggingFace model identifier
-            threshold: Classification threshold (0.0 to 1.0)
-            device: Device for inference ('cuda', 'cpu', or 'auto')
-            use_cache: Enable caching of results
-            cache_size: Maximum number of cached entries
-            cache_ttl: Cache time-to-live in seconds (None for no expiration)
-            enable_analysis: Enable sentiment/intent analysis
-            **kwargs: Additional configuration options
+            model_name: HuggingFace Hub model identifier.
+            threshold: Malicious classification threshold in ``[0.0, 1.0]``.
+                Prompts with a model probability at or above this value are
+                classified as malicious.
+            device: Device for model inference — ``"cuda"``, ``"cpu"``, or
+                ``"auto"`` (selects CUDA when available).
+            use_cache: Enable in-memory LRU caching of analysis results.
+            cache_size: Maximum number of entries held in the cache.
+            cache_ttl: Cache entry time-to-live in seconds.  Pass ``None`` to
+                disable expiry.
+            enable_analysis: When ``True`` (default), enables supplementary
+                sentiment, intent, keyword, and attack-pattern analysis that
+                enriches :class:`~promptguard.schemas.RiskScore` metadata.
+            enable_sanitization: When ``True`` (default), enables the
+                :meth:`sanitize` and :meth:`sanitize_if_malicious` methods.
+            **kwargs: Additional options forwarded to
+                :class:`~promptguard.config.PromptGuardConfig`.
         """
         # Create configuration
         self.config = PromptGuardConfig(
@@ -102,43 +112,47 @@ class PromptGuard:
         self,
         prompt: str,
         strategy: SanitizationStrategy = SanitizationStrategy.BALANCED,
-        analyze_after: bool = True
-    ) -> Dict[str, Any]:
-        """
-        Sanitize a potentially malicious prompt.
+        analyze_after: bool = True,
+    ) -> SanitizeResponse:
+        """Sanitise a potentially malicious prompt.
 
         Args:
-            prompt: Prompt to sanitize
-            strategy: Sanitization strategy to use
-            analyze_after: Whether to analyze sanitized prompt
+            prompt: Prompt to sanitise.
+            strategy: Sanitisation strategy to apply.
+            analyze_after: When ``True`` (default), the sanitised prompt is
+                re-analysed and the result stored in
+                :attr:`SanitizeResponse.sanitized_analysis`.
 
         Returns:
-            Dict with sanitization result and optional analysis
+            A :class:`~promptguard.schemas.SanitizeResponse` with the
+            sanitisation outcome and before/after risk scores.
+
+        Raises:
+            ValueError: When sanitisation is not enabled on this instance.
         """
         if not self.enable_sanitization or self.sanitizer is None:
             raise ValueError("Sanitization is not enabled")
 
-        # Analyze original prompt
         original_analysis = self.analyze(prompt)
-
-        # Sanitize
         sanitization = self.sanitizer.sanitize(prompt, strategy)
 
-        # Analyze sanitized prompt if requested
         sanitized_analysis = None
         if analyze_after and sanitization.was_modified:
             sanitized_analysis = self.analyze(sanitization.sanitized)
 
-        return {
-            'sanitization': sanitization,
-            'original_analysis': original_analysis,
-            'sanitized_analysis': sanitized_analysis,
-            'risk_before': original_analysis.probability,
-            'risk_after': sanitized_analysis.probability if sanitized_analysis else None,
-            'risk_reduction': original_analysis.probability - (
-                sanitized_analysis.probability if sanitized_analysis else original_analysis.probability
-            )
-        }
+        risk_after = sanitized_analysis.probability if sanitized_analysis else None
+        risk_reduction = original_analysis.probability - (
+            risk_after if risk_after is not None else original_analysis.probability
+        )
+
+        return SanitizeResponse(
+            sanitization=sanitization,
+            original_analysis=original_analysis,
+            sanitized_analysis=sanitized_analysis,
+            risk_before=original_analysis.probability,
+            risk_after=risk_after,
+            risk_reduction=risk_reduction,
+        )
 
     def sanitize_if_malicious(
         self,
@@ -242,11 +256,8 @@ class PromptGuard:
         Analyze a single prompt for malicious content.
         """
         # Validate input
-        if not prompt or not isinstance(prompt, str):
+        if not isinstance(prompt, str) or not prompt.strip():
             raise ValidationError("Prompt must be a non-empty string")
-
-        if len(prompt.strip()) == 0:
-            raise ValidationError("Prompt cannot be empty or whitespace only")
 
         # Check cache first
         if self.use_cache and self.cache is not None:

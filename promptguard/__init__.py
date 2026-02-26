@@ -1,16 +1,30 @@
-"""
-PromptGuard: Production-ready library for detecting malicious LLM prompts.
-"""
+"""PromptGuard: production-ready library for detecting malicious LLM prompts."""
 
 __version__ = "0.1.0"
-__author__ = "Your Name"
-__email__ = "your.email@example.com"
+__author__ = "Hasanain Ghafoor"
+__email__ = "hgaffa@gmail.com"
 
-# Import main classes
+# Core
 from .core import PromptGuard
-from .schemas import RiskScore, RiskLevel, Intent, Sentiment  # Added Intent, Sentiment
+
+# Schemas — enums and data classes (single source of truth)
+from .schemas import (
+    RiskLevel,
+    RiskScore,
+    Intent,
+    Sentiment,
+    SanitizationStrategy,
+    SanitizationResult,
+    SanitizeResponse,
+)
+
+# Configuration
 from .config import PromptGuardConfig
+
+# Cache
 from .cache import PromptCache
+
+# Exceptions
 from .exceptions import (
     PromptGuardError,
     ModelLoadError,
@@ -19,73 +33,64 @@ from .exceptions import (
     InferenceError,
 )
 
-# Import analyzers
+# Analysers
 from .analyzers import (
     SentimentAnalyzer,
     IntentClassifier,
     KeywordExtractor,
-    AttackPatternDetector
+    AttackPatternDetector,
 )
 
-# Import sanitizers
-from .sanitizers import (
-    PromptSanitizer,
-    AdvancedSanitizer,
-    SanitizationResult,
-    SanitizationStrategy
-)
+# Sanitisers
+from .sanitizers import PromptSanitizer, AdvancedSanitizer
 
-# Import utilities
+# Utilities
 from .utils import (
     summarize_results,
     filter_by_risk_level,
     get_most_dangerous,
     export_to_csv,
-    results_to_dataframe
+    results_to_dataframe,
 )
 
-# Import logging config
+# Logging helpers
 from .logging_config import setup_logging, disable_transformers_logging
 
-# Define public API
 __all__ = [
     # Core
     "PromptGuard",
+    # Schemas
     "RiskScore",
     "RiskLevel",
     "Intent",
     "Sentiment",
+    "SanitizationStrategy",
+    "SanitizationResult",
+    "SanitizeResponse",
+    # Config
     "PromptGuardConfig",
-
     # Cache
     "PromptCache",
-
-    # Analyzers
-    "SentimentAnalyzer",
-    "IntentClassifier",
-    "KeywordExtractor",
-    "AttackPatternDetector",
-    
-    # Sanitizers
-    "PromptSanitizer",
-    "AdvancedSanitizer",
-    "SanitizationResult",
-    "SanitizationStrategy",
-
     # Exceptions
     "PromptGuardError",
     "ModelLoadError",
     "ValidationError",
     "ConfigurationError",
     "InferenceError",
-
-    # Utils
+    # Analysers
+    "SentimentAnalyzer",
+    "IntentClassifier",
+    "KeywordExtractor",
+    "AttackPatternDetector",
+    # Sanitisers
+    "PromptSanitizer",
+    "AdvancedSanitizer",
+    # Utilities
     "summarize_results",
     "filter_by_risk_level",
     "get_most_dangerous",
     "export_to_csv",
     "results_to_dataframe",
-
     # Logging
     "setup_logging",
     "disable_transformers_logging",

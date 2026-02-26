@@ -34,8 +34,11 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-cov>=4.0.0",
+    "pytest-mock>=3.0.0",
     "black>=23.0.0",
     "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
 ]
 
 [project.urls]
@@ -54,7 +57,7 @@ addopts = [
     "--cov=promptguard",
     "--cov-report=html",
     "--cov-report=term-missing",
-    "--cov-fail-under=80"
+    "--cov-fail-under=85"
 ]
 
 [tool.coverage.run]
@@ -77,10 +80,22 @@ exclude_lines = [
 
 [tool.black]
 line-length = 88
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py312']
 
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true
-disallow_untyped_defs = false
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "transformers.*",
+    "vaderSentiment.*",
+    "spacy.*",
+    "tqdm.*",
+    "pandas.*",
+]
+ignore_missing_imports = true

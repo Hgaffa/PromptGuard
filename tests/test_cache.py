@@ -94,3 +94,40 @@ class TestPromptCache:
         assert 'size' in stats
         assert 'max_size' in stats
         assert stats['size'] == 1
+
+    def test_lru_order_preserved(self):
+        """Verify LRU eviction removes the least-recently-used item.
+
+        Insert [p1, p2, p3] into a cache of size 3, then access p1 to promote
+        it.  Adding p4 should evict p2 (now the LRU), not p1.
+        """
+        score = RiskScore(
+            is_malicious=False,
+            probability=0.1,
+            risk_level=RiskLevel.LOW,
+            confidence=0.8,
+            explanation="Test",
+        )
+        cache = PromptCache(max_size=3, ttl_seconds=None)
+
+        cache.set("p1", score)
+        cache.set("p2", score)
+        cache.set("p3", score)
+
+        # Access p1 to make it the most recently used
+        assert cache.get("p1") is not None
+
+        # Adding p4 must evict p2 (the true LRU after p1 was accessed)
+        cache.set("p4", score)
+
+        assert cache.size() == 3
+        assert cache.get("p1") is not None, "p1 should still be cached"
+        assert cache.get("p2") is None, "p2 should have been evicted (LRU)"
+        assert cache.get("p3") is not None, "p3 should still be cached"
+        assert cache.get("p4") is not None, "p4 should be cached"
+
+    def test_duplicate_set_updates_entry(self, cache, sample_risk_score):
+        """Setting the same prompt twice should update, not duplicate."""
+        cache.set("prompt", sample_risk_score)
+        cache.set("prompt", sample_risk_score)
+        assert cache.size() == 1

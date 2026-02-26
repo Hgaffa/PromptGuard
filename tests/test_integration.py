@@ -20,8 +20,8 @@ class TestEndToEndWorkflow:
             strategy=SanitizationStrategy.BALANCED
         )
 
-        assert result['sanitization'].was_modified is True
-        assert result['risk_after'] < result['risk_before']
+        assert result.sanitization.was_modified is True
+        assert result.risk_after < result.risk_before
 
     def test_sanitize_if_malicious_workflow(self, prompt_guard: PromptGuard):
         """Test sanitize_if_malicious workflow."""

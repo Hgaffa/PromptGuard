@@ -30,13 +30,13 @@ def main():
                          SanitizationStrategy.MINIMAL]:
             result = guard.sanitize(
                 prompt, strategy=strategy, analyze_after=True)
-            sanitization = result['sanitization']
+            sanitization = result.sanitization
 
             key = strategy.value
             row[f'{key}_sanitized'] = sanitization.sanitized[:40] + \
                 '...' if len(
                     sanitization.sanitized) > 40 else sanitization.sanitized
-            row[f'{key}_risk_reduction'] = f"{result['risk_reduction']:.2f}"
+            row[f'{key}_risk_reduction'] = f"{result.risk_reduction:.2f}"
 
         results.append(row)
 

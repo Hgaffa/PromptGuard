@@ -14,11 +14,6 @@ def summarize_results(results: List[RiskScore]) -> Dict[str, Any]:
 
     Returns:
         Dictionary with summary statistics
-
-    Example:
-        >>> results = guard.analyze_batch(prompts)
-        >>> summary = summarize_results(results)
-        >>> print(f"Malicious: {summary['malicious_count']}")
     """
     # Filter out None results
     valid_results = [r for r in results if r is not None]

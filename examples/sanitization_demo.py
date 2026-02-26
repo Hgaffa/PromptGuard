@@ -40,7 +40,7 @@ def main():
             result = guard.sanitize(
                 prompt, strategy=strategy, analyze_after=True)
 
-            sanitization = result['sanitization']
+            sanitization = result.sanitization
 
             print(f"\n{strategy.value.upper()} Strategy:")
             print(f"  Sanitized: {sanitization.sanitized}")
@@ -51,9 +51,9 @@ def main():
                     f"  Patterns removed: {len(sanitization.removed_patterns)}")
                 print(f"  Confidence: {sanitization.confidence:.2f}")
                 print(f"  Risk reduction: {sanitization.risk_reduction:.2f}")
-                print(f"  Risk before: {result['risk_before']:.3f}")
-                print(f"  Risk after: {result['risk_after']:.3f}")
-                print(f"  Actual reduction: {result['risk_reduction']:.3f}")
+                print(f"  Risk before: {result.risk_before:.3f}")
+                print(f"  Risk after: {result.risk_after:.3f}")
+                print(f"  Actual reduction: {result.risk_reduction:.3f}")
 
     print(f"\n{'='*60}")
     print("SANITIZE IF MALICIOUS")

@@ -51,14 +51,15 @@ class ModelLoader:
 
         try:
             logger.info(
-                f"Loading model from HuggingFace Hub: {self.config.model_name}")
+                "Loading model from HuggingFace Hub: %s", self.config.model_name
+            )
 
             # Load tokenizer
             self._tokenizer = AutoTokenizer.from_pretrained(
                 self.config.model_name,
-                use_fast=True
+                use_fast=True,
             )
-            logger.debug("✓ Tokenizer loaded")
+            logger.debug("Tokenizer loaded")
 
             # Load model
             self._model = AutoModelForSequenceClassification.from_pretrained(
@@ -69,7 +70,7 @@ class ModelLoader:
             self._model.to(self._device)
             self._model.eval()
 
-            logger.info(f"✓ Model loaded successfully on {self._device}")
+            logger.info("Model loaded successfully on %s", self._device)
 
             return self._model, self._tokenizer
 

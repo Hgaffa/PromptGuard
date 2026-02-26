@@ -1,237 +1,180 @@
 """
-Prompt sanitization strategies for cleaning malicious content.
+Prompt sanitisation strategies for cleaning malicious content.
 
-This module provides different strategies for sanitizing prompts that contain
-injection attempts or jailbreak patterns, allowing users to clean prompts
-while preserving legitimate intent.
+This module provides ``PromptSanitizer`` and ``AdvancedSanitizer`` which remove
+or neutralise injection attempts and jailbreak patterns while trying to preserve
+the user's legitimate intent.
 """
 
 import re
 import logging
-from typing import Dict, Any, List, Optional, Tuple
-from enum import Enum
-from dataclasses import dataclass
+import unicodedata
+from typing import Any, Dict, List, Optional, Tuple
+
+from .schemas import SanitizationResult, SanitizationStrategy
 
 logger = logging.getLogger(__name__)
 
 
-class SanitizationStrategy(str, Enum):
-    """Sanitization strategy levels."""
-    CONSERVATIVE = "conservative"  # Remove everything suspicious
-    BALANCED = "balanced"           # Remove obvious attacks, preserve intent
-    MINIMAL = "minimal"            # Only remove critical patterns
-
-
-@dataclass
-class SanitizationResult:
-    """
-    Result of prompt sanitization.
-
-    Attributes:
-        original: Original prompt
-        sanitized: Cleaned prompt
-        was_modified: Whether any changes were made
-        removed_patterns: List of patterns that were removed
-        strategy: Strategy used for sanitization
-        confidence: Confidence that sanitization was successful (0-1)
-        risk_reduction: Estimated risk reduction from sanitization
-    """
-    original: str
-    sanitized: str
-    was_modified: bool
-    removed_patterns: List[str]
-    strategy: SanitizationStrategy
-    confidence: float
-    risk_reduction: float
-
-    def __str__(self) -> str:
-        """String representation."""
-        status = "MODIFIED" if self.was_modified else "UNCHANGED"
-        return (
-            f"SanitizationResult(status={status}, "
-            f"patterns_removed={len(self.removed_patterns)}, "
-            f"strategy={self.strategy.value})"
-        )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary."""
-        return {
-            "original": self.original,
-            "sanitized": self.sanitized,
-            "was_modified": self.was_modified,
-            "removed_patterns": self.removed_patterns,
-            "strategy": self.strategy.value,
-            "confidence": self.confidence,
-            "risk_reduction": self.risk_reduction
-        }
-
-
 class PromptSanitizer:
-    """
-    Sanitize prompts by removing or neutralizing malicious patterns.
+    """Sanitise prompts by removing or neutralising malicious patterns.
 
-    Supports three strategies:
-    - CONSERVATIVE: Aggressive removal, might affect legitimate prompts
-    - BALANCED: Remove obvious attacks while preserving intent
-    - MINIMAL: Only remove critical injection patterns
+    Input text is Unicode-normalised (NFKC) before pattern matching so that
+    full-width and compatibility character obfuscation is caught automatically.
+
+    Three strategies are supported:
+
+    * **CONSERVATIVE** — applies all pattern groups.  Maximum safety; may
+      affect some legitimate phrasing.
+    * **BALANCED** (default) — applies critical, encoding, and context-reset
+      patterns.  Good trade-off for most production applications.
+    * **MINIMAL** — applies only the critical patterns.  Use when exact wording
+      must be preserved as much as possible.
     """
 
-    # Pattern definitions for each strategy level
+    # ── Critical: direct instruction override & tag injection ─────────────────
     _CRITICAL_PATTERNS = [
-        # Direct instruction override
-        (r"ignore\s+(all\s+)?(previous|prior|above|earlier|all)\s+(instructions?|rules?|prompts?)", ""),
+        (
+            r"ignore\s+(all\s+)?(previous|prior|above|earlier|all)"
+            r"\s+(instructions?|rules?|prompts?)",
+            "",
+        ),
         (r"forget\s+(everything|all|prior|previous|instructions?)", ""),
-        (r"disregard\s+(previous|prior|above|all)\s+(instructions?|context|rules?)", ""),
-
-        # System/role manipulation
+        (
+            r"disregard\s+(previous|prior|above|all)"
+            r"\s+(instructions?|context|rules?)",
+            "",
+        ),
         (r"(developer|debug|admin|sudo|root)\s+mode", ""),
         (r"\byou\s+are\s+now\s+(a|an)\s+\w+", "you are an AI assistant"),
         (r"\bdan\b(?!\w)", ""),
         (r"do\s+anything\s+now", ""),
-
-        # System prompt extraction
         (r"(print|show|reveal|display)\s+(your\s+)?(system\s+)?prompt", ""),
         (r"repeat\s+(the\s+)?(above|previous|initial)\s+(instructions?|text)", ""),
-
-        # Tag injection
         (r"</?(system|user|assistant)>", ""),
         (r"\[/?INST\]", ""),
         (r"<</?SYS>>", ""),
     ]
 
-    _AGGRESSIVE_PATTERNS = [
-        # Context manipulation
+    # ── Context manipulation: session/memory reset ─────────────────────────────
+    # Used by BALANCED and CONSERVATIVE strategies.
+    _CONTEXT_MANIPULATION_PATTERNS = [
         (r"start\s+(over|fresh|anew)", "continue"),
         (r"new\s+(conversation|context|session)", "current conversation"),
         (r"(clear|reset|wipe)\s+(your\s+)?(memory|context)", ""),
+    ]
 
-        # Role-play attempts
-        (r"(act\s+as|pretend\s+to\s+be|roleplay\s+as)\s+(a|an)\s+\w+", "help with"),
-
-        # Safety bypass
-        (r"(ignore|bypass|disable|remove)\s+(safety|security|restrictions?)", ""),
+    # ── Role-play, safety bypass, and output shaping ───────────────────────────
+    # Used only by the CONSERVATIVE strategy.
+    _ROLEPLAY_PATTERNS = [
+        (
+            r"(act\s+as|pretend\s+to\s+be|roleplay\s+as)\s+(a|an)\s+\w+",
+            "help with",
+        ),
+        (
+            r"(ignore|bypass|disable|remove)\s+(safety|security|restrictions?)",
+            "",
+        ),
         (r"no\s+(restrictions?|limits?|rules?|filters?)", ""),
-
-        # Output manipulation
         (r"respond\s+(only|exclusively)\s+with", "respond with"),
         (r"(always|only)\s+(respond|reply|answer)\s+(in|with|as)", "respond"),
     ]
 
+    # ── Encoding attacks ───────────────────────────────────────────────────────
     _ENCODING_PATTERNS = [
-        # Base64 (only long sequences that look suspicious)
-        (r"(?<!\w)[A-Za-z0-9+/]{30,}={0,2}(?!\w)", "[removed]"),
-
-        # Hex sequences
-        (r"(?:\\x[0-9a-fA-F]{2}){4,}", "[removed]"),
-
-        # Unicode escapes
-        (r"(?:\\u[0-9a-fA-F]{4}){3,}", "[removed]"),
+        (r"(?<!\w)[A-Za-z0-9+/]{30,}={0,2}(?!\w)", "[removed]"),  # Base64
+        (r"(?:\\x[0-9a-fA-F]{2}){4,}", "[removed]"),               # Hex escapes
+        (r"(?:\\u[0-9a-fA-F]{4}){3,}", "[removed]"),               # Unicode escapes
     ]
 
+    # ── Character-level obfuscation ────────────────────────────────────────────
     _OBFUSCATION_PATTERNS = [
-        # Character spacing (i g n o r e)
+        # Character spacing: "i g n o r e" → "ignore"
         (r"\b([a-z])\s+([a-z])\s+([a-z])\s+([a-z])\s+([a-z])", r"\1\2\3\4\5"),
-
-        # Leetspeak
         (r"\b1gn[0o]r[e3]\b", "ignore"),
         (r"\bbyp[4a]ss\b", "bypass"),
         (r"\b[0o]v[e3]rr[1i]d[e3]\b", "override"),
-
-        # Excessive punctuation
-        (r"([.!?])\1{2,}", r"\1"),
+        (r"([.!?])\1{2,}", r"\1"),  # Excessive punctuation
     ]
 
-    def __init__(self):
-        """Initialize sanitizer with compiled patterns."""
-        # Pre-compile all patterns for performance
-        self._compiled_critical = [
-            (re.compile(pattern, re.IGNORECASE), replacement)
-            for pattern, replacement in self._CRITICAL_PATTERNS
-        ]
+    # Pre-compiled whitespace cleaner (module-level to avoid re-instantiation)
+    _WS_RE = re.compile(r"\s+")
+    _PUNCT_WS_RE = re.compile(r"\s+([,.!?])")
 
-        self._compiled_aggressive = [
-            (re.compile(pattern, re.IGNORECASE), replacement)
-            for pattern, replacement in self._AGGRESSIVE_PATTERNS
-        ]
-
-        self._compiled_encoding = [
-            (re.compile(pattern, re.IGNORECASE), replacement)
-            for pattern, replacement in self._ENCODING_PATTERNS
-        ]
-
-        self._compiled_obfuscation = [
-            (re.compile(pattern, re.IGNORECASE), replacement)
-            for pattern, replacement in self._OBFUSCATION_PATTERNS
-        ]
-
+    def __init__(self) -> None:
+        """Compile all pattern lists at initialisation time."""
+        self._compiled_critical = self._compile(self._CRITICAL_PATTERNS)
+        self._compiled_context_manipulation = self._compile(
+            self._CONTEXT_MANIPULATION_PATTERNS
+        )
+        self._compiled_roleplay = self._compile(self._ROLEPLAY_PATTERNS)
+        self._compiled_encoding = self._compile(self._ENCODING_PATTERNS)
+        self._compiled_obfuscation = self._compile(self._OBFUSCATION_PATTERNS)
         logger.debug("PromptSanitizer initialized")
+
+    # ── Public interface ───────────────────────────────────────────────────────
 
     def sanitize(
         self,
         prompt: str,
-        strategy: SanitizationStrategy = SanitizationStrategy.BALANCED
+        strategy: SanitizationStrategy = SanitizationStrategy.BALANCED,
     ) -> SanitizationResult:
-        """
-        Sanitize a prompt using the specified strategy.
+        """Sanitise *prompt* using the specified *strategy*.
+
+        The prompt is Unicode-normalised before any pattern matching so that
+        obfuscated variants (e.g. full-width characters) are caught.
 
         Args:
-            prompt: Prompt to sanitize
-            strategy: Sanitization strategy to use
+            prompt: The prompt text to sanitise.
+            strategy: Sanitisation strategy controlling which pattern groups
+                are applied.
 
         Returns:
-            SanitizationResult with sanitized prompt and metadata
+            A :class:`~promptguard.schemas.SanitizationResult` describing the
+            outcome.
 
-        Example:
-            >>> sanitizer = PromptSanitizer()
-            >>> result = sanitizer.sanitize("Ignore all previous instructions")
-            >>> print(result.sanitized)  # Cleaned prompt
-            >>> print(result.removed_patterns)  # What was removed
+        Example::
+
+            sanitizer = PromptSanitizer()
+            result = sanitizer.sanitize("Ignore all previous instructions")
+            print(result.sanitized)       # Cleaned prompt
+            print(result.removed_patterns)  # What was removed
         """
-        original = prompt
-        sanitized = prompt
-        removed_patterns = []
+        # Normalise Unicode before any matching
+        original = unicodedata.normalize("NFKC", prompt)
+        sanitized = original
+        removed_patterns: List[str] = []
 
-        # Apply patterns based on strategy
         if strategy == SanitizationStrategy.CONSERVATIVE:
             sanitized, patterns = self._apply_patterns(
                 sanitized,
-                self._compiled_critical +
-                self._compiled_aggressive +
-                self._compiled_encoding +
-                self._compiled_obfuscation
+                self._compiled_critical
+                + self._compiled_context_manipulation
+                + self._compiled_roleplay
+                + self._compiled_encoding
+                + self._compiled_obfuscation,
             )
             removed_patterns.extend(patterns)
 
         elif strategy == SanitizationStrategy.BALANCED:
-            # Apply critical and encoding patterns
             sanitized, patterns = self._apply_patterns(
                 sanitized,
-                self._compiled_critical + self._compiled_encoding
-            )
-            removed_patterns.extend(patterns)
-
-            # Apply selective aggressive patterns (preserve intent)
-            sanitized, patterns = self._apply_patterns(
-                sanitized,
-                self._compiled_aggressive[:3]  # Only first 3 patterns
+                self._compiled_critical
+                + self._compiled_encoding
+                + self._compiled_context_manipulation,
             )
             removed_patterns.extend(patterns)
 
         else:  # MINIMAL
-            # Only apply critical patterns
             sanitized, patterns = self._apply_patterns(
-                sanitized,
-                self._compiled_critical
+                sanitized, self._compiled_critical
             )
             removed_patterns.extend(patterns)
 
-        # Clean up whitespace
         sanitized = self._clean_whitespace(sanitized)
 
-        # Calculate confidence and risk reduction
         was_modified = sanitized != original
-        confidence = self._calculate_confidence(
-            original, sanitized, removed_patterns)
+        confidence = self._calculate_confidence(original, sanitized, removed_patterns)
         risk_reduction = self._estimate_risk_reduction(removed_patterns)
 
         return SanitizationResult(
@@ -241,72 +184,68 @@ class PromptSanitizer:
             removed_patterns=removed_patterns,
             strategy=strategy,
             confidence=confidence,
-            risk_reduction=risk_reduction
+            risk_reduction=risk_reduction,
         )
 
+    # ── Private helpers ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _compile(
+        patterns: List[Tuple[str, str]],
+    ) -> List[Tuple[re.Pattern, str]]:
+        """Compile a list of ``(raw_pattern, replacement)`` tuples."""
+        compiled = []
+        for raw, replacement in patterns:
+            try:
+                compiled.append((re.compile(raw, re.IGNORECASE), replacement))
+            except re.error as exc:
+                logger.warning("Failed to compile pattern %r: %s", raw, exc)
+        return compiled
+
+    @staticmethod
     def _apply_patterns(
-        self,
         text: str,
-        patterns: List[Tuple[re.Pattern, str]]
+        patterns: List[Tuple[re.Pattern, str]],
     ) -> Tuple[str, List[str]]:
-        """
-        Apply list of regex patterns to text.
+        """Apply *patterns* to *text* and return the result plus matched text.
 
         Returns:
-            Tuple of (modified_text, list_of_matched_patterns)
+            ``(modified_text, list_of_matched_strings)``
         """
-        removed = []
-
+        removed: List[str] = []
         for pattern, replacement in patterns:
             matches = pattern.findall(text)
             if matches:
-                # Track what was matched
                 for match in matches:
                     if isinstance(match, tuple):
-                        match = match[0]  # Get first group
-                    removed.append(match if isinstance(
-                        match, str) else str(match))
-
-                # Apply replacement
+                        match = match[0]
+                    removed.append(match if isinstance(match, str) else str(match))
                 text = pattern.sub(replacement, text)
-
         return text, removed
 
     def _clean_whitespace(self, text: str) -> str:
-        """Clean up excessive whitespace."""
-        # Remove multiple spaces
-        text = re.sub(r'\s+', ' ', text)
+        """Collapse multiple spaces and strip leading/trailing whitespace."""
+        text = self._WS_RE.sub(" ", text)
+        text = self._PUNCT_WS_RE.sub(r"\1", text)
+        return text.strip()
 
-        # Remove leading/trailing whitespace
-        text = text.strip()
-
-        # Remove spaces before punctuation
-        text = re.sub(r'\s+([,.!?])', r'\1', text)
-
-        return text
-
+    @staticmethod
     def _calculate_confidence(
-        self,
         original: str,
         sanitized: str,
-        removed_patterns: List[str]
+        removed_patterns: List[str],
     ) -> float:
-        """
-        Calculate confidence that sanitization was successful.
+        """Estimate how confident we are that the sanitised prompt is safe.
 
-        Higher confidence means we're more certain the prompt is now safe.
+        Returns:
+            A float in ``[0, 1]``.
         """
         if not removed_patterns:
-            # Nothing was removed, confidence depends on original safety
-            return 0.5  # Neutral
+            return 0.5
 
-        # Calculate based on how much was removed
-        removal_ratio = 1 - (len(sanitized) / max(len(original), 1))
-
-        # More patterns removed = higher confidence we fixed it
+        removal_ratio = 1.0 - (len(sanitized) / max(len(original), 1))
         pattern_score = min(len(removed_patterns) / 5, 1.0)
 
-        # If too much was removed, lower confidence (might have broken prompt)
         if removal_ratio > 0.5:
             confidence = 0.6
         else:
@@ -314,89 +253,96 @@ class PromptSanitizer:
 
         return round(confidence, 2)
 
-    def _estimate_risk_reduction(self, removed_patterns: List[str]) -> float:
-        """
-        Estimate how much risk was reduced by sanitization.
+    @staticmethod
+    def _estimate_risk_reduction(removed_patterns: List[str]) -> float:
+        """Estimate how much risk was reduced by sanitisation.
 
-        Returns value between 0.0 and 1.0.
+        Returns:
+            A float in ``[0, 1]``.
         """
         if not removed_patterns:
             return 0.0
-
-        # Each removed pattern reduces risk
-        # Critical patterns have more impact
-        risk_reduction = min(len(removed_patterns) * 0.15, 1.0)
-
-        return round(risk_reduction, 2)
+        return round(min(len(removed_patterns) * 0.15, 1.0), 2)
 
 
 class AdvancedSanitizer(PromptSanitizer):
-    """
-    Advanced sanitizer with additional context-aware cleaning.
+    """Sanitiser with intent-aware cleaning and safe-rephrasing suggestions.
 
-    Extends PromptSanitizer with:
-    - Intent preservation (tries to keep user's legitimate intent)
-    - Smart replacement (replaces dangerous patterns with safe alternatives)
-    - Context-aware cleaning (understands when patterns might be legitimate)
+    Extends :class:`PromptSanitizer` with:
+
+    * **Intent preservation** — uses a lighter strategy for question-type
+      prompts to minimise over-removal.
+    * **Safe alternative suggestions** — rewrites common attack patterns into
+      legitimate equivalents.
     """
+
+    # (compiled_pattern, replacement) — built once in __init__
+    _ALTERNATIVE_PATTERNS_RAW = [
+        (r"ignore.*previous", "I have a new question:"),
+        (r"forget.*instructions", "Starting fresh:"),
+        (r"pretend.*you.*are", "Act as if you were"),
+        (r"system\s+prompt", "your instructions"),
+    ]
+
+    def __init__(self) -> None:
+        """Compile parent patterns and pre-compile alternative patterns."""
+        super().__init__()
+        self._compiled_alternatives: List[Tuple[re.Pattern, str]] = [
+            (re.compile(raw, re.IGNORECASE), replacement)
+            for raw, replacement in self._ALTERNATIVE_PATTERNS_RAW
+        ]
 
     def sanitize_with_intent(
         self,
         prompt: str,
         intent: Optional[str] = None,
-        strategy: SanitizationStrategy = SanitizationStrategy.BALANCED
+        strategy: SanitizationStrategy = SanitizationStrategy.BALANCED,
     ) -> SanitizationResult:
-        """
-        Sanitize while trying to preserve the user's intent.
+        """Sanitise *prompt* while respecting the detected *intent*.
+
+        When *intent* is ``"question"`` the MINIMAL strategy is used to avoid
+        removing context that forms part of a legitimate query.
 
         Args:
-            prompt: Prompt to sanitize
-            intent: Detected intent (question, instruction, etc.)
-            strategy: Sanitization strategy
+            prompt: The prompt text to sanitise.
+            intent: Detected intent string (e.g. ``"question"``,
+                ``"instruction"``).
+            strategy: Fallback strategy for non-question intents.
 
         Returns:
-            SanitizationResult with intent-aware cleaning
+            A :class:`~promptguard.schemas.SanitizationResult`.
         """
-        # If intent is QUESTION, be less aggressive with removal
-        if intent and intent.lower() == "question":
-            # Use minimal strategy for questions
-            actual_strategy = SanitizationStrategy.MINIMAL
-        else:
-            actual_strategy = strategy
+        actual_strategy = (
+            SanitizationStrategy.MINIMAL
+            if intent and intent.lower() == "question"
+            else strategy
+        )
 
-        # Perform standard sanitization
         result = self.sanitize(prompt, actual_strategy)
 
-        # If too much was removed and we have intent, try to preserve it
-        if result.was_modified and len(result.sanitized) < len(prompt) * 0.5:
-            # Significant removal, try to add context back
-            if intent == "question":
-                result.sanitized = f"Question: {result.sanitized}"
+        # If a large portion was removed from a question, prepend context marker
+        if (
+            result.was_modified
+            and intent == "question"
+            and len(result.sanitized) < len(prompt) * 0.5
+        ):
+            result.sanitized = f"Question: {result.sanitized}"
 
         return result
 
     def suggest_alternative(self, prompt: str) -> Optional[str]:
-        """
-        Suggest a safe alternative phrasing for a malicious prompt.
+        """Return a safe rephrasing of *prompt*, or ``None`` if no match.
+
+        Uses pre-compiled patterns so there is no per-call compilation cost.
 
         Args:
-            prompt: Potentially malicious prompt
+            prompt: A potentially malicious prompt.
 
         Returns:
-            Suggested safe alternative or None if prompt seems safe
+            A sanitised alternative string, or ``None`` if the prompt does not
+            match any known attack pattern.
         """
-        prompt_lower = prompt.lower()
-
-        # Common patterns and their alternatives
-        alternatives = {
-            r"ignore.*previous": "I have a new question:",
-            r"forget.*instructions": "Starting fresh:",
-            r"pretend.*you.*are": "Act as if you were",
-            r"system\s+prompt": "your instructions",
-        }
-
-        for pattern, replacement in alternatives.items():
-            if re.search(pattern, prompt_lower, re.IGNORECASE):
-                return re.sub(pattern, replacement, prompt, flags=re.IGNORECASE)
-
+        for compiled_re, replacement in self._compiled_alternatives:
+            if compiled_re.search(prompt):
+                return compiled_re.sub(replacement, prompt)
         return None
