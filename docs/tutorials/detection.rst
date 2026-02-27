@@ -121,7 +121,7 @@ Enable the built-in LRU cache to avoid re-running the model on repeated prompts:
 Summarising Batch Results
 --------------------------
 
-The :mod:`~promptguard.utils` module provides helpers for working with lists of
+The :doc:`../api/utils` page documents helpers for working with lists of
 :class:`~promptguard.RiskScore` objects:
 
 .. code-block:: python

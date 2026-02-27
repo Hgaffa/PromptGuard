@@ -66,9 +66,6 @@ so you get both speed and interpretability.
    :caption: Tutorials
 
    tutorials/index
-   tutorials/detection
-   tutorials/sanitization
-   tutorials/analysis
 
 .. toctree::
    :hidden:
@@ -76,15 +73,6 @@ so you get both speed and interpretability.
    :caption: API Reference
 
    api/index
-   api/core
-   api/schemas
-   api/analyzers
-   api/sanitizers
-   api/cache
-   api/utils
-   api/exceptions
-   api/config
-   api/logging
 
 .. toctree::
    :hidden:

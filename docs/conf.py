@@ -18,12 +18,12 @@ version = "0.1.0"
 
 extensions = [
     "sphinx.ext.autodoc",        # Auto-generate docs from docstrings
-    "sphinx.ext.autosummary",    # Summary tables for modules/classes
     "sphinx.ext.napoleon",       # Google / NumPy style docstrings
     "sphinx.ext.viewcode",       # [source] links on API pages
     "sphinx.ext.intersphinx",    # Cross-link to Python standard library
     "sphinx_copybutton",         # Copy button on code blocks
     "sphinx_autodoc_typehints",  # Render type hints in API docs
+    "sphinx_design",             # Grid cards on the landing page
     "myst_parser",               # Markdown support
 ]
 
@@ -116,10 +116,6 @@ napoleon_use_admonition_for_notes = True
 napoleon_use_admonition_for_references = False
 napoleon_use_rtype = False        # Types shown inline via typehints
 napoleon_preprocess_types = True
-
-# ── autosummary ────────────────────────────────────────────────────────────────
-
-autosummary_generate = True
 
 # ── copybutton ─────────────────────────────────────────────────────────────────
 
