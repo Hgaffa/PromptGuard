@@ -6,21 +6,18 @@ from typing import Optional
 
 @dataclass
 class PromptGuardConfig:
-    """
-    Configuration for PromptGuard classifier.
+    """Configuration for the PromptGuard classifier."""
 
-    Attributes:
-        model_name: HuggingFace model identifier
-        threshold: Classification threshold (default: 0.5)
-        device: Device to run inference on ('cuda', 'cpu', or 'auto')
-        max_length: Maximum sequence length for tokenization
-        batch_size: Batch size for batch predictions
-    """
     model_name: str = "arkaean/promptguard-distilbert"
+    """HuggingFace model identifier."""
     threshold: float = 0.5
+    """Classification threshold (default: ``0.5``)."""
     device: Optional[str] = "auto"
+    """Inference device: ``'cuda'``, ``'cpu'``, or ``'auto'``."""
     max_length: int = 512
+    """Maximum token sequence length for the tokenizer."""
     batch_size: int = 32
+    """Default batch size for :meth:`~promptguard.PromptGuard.analyze_batch`."""
 
     def __post_init__(self):
         """Validate configuration after initialization."""

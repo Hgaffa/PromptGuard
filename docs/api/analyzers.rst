@@ -11,7 +11,6 @@ promptguard.analyzers
 
 .. autoclass:: promptguard.KeywordExtractor
    :members:
-   :special-members: __init__
 
 .. autoclass:: promptguard.AttackPatternDetector
    :members:

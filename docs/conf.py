@@ -25,11 +25,9 @@ extensions = [
     "sphinx_design",         # Grid cards on the landing page
     "myst_parser",           # Markdown support
     # NOTE: sphinx_autodoc_typehints is intentionally omitted.
-    # Its dataclass support reads __init__.pyi stubs and generates a second
-    # attribute description for every re-exported dataclass field, causing
-    # unsuppressable "duplicate object description" warnings in Sphinx 9.
-    # Sphinx's built-in autodoc_typehints = "description" gives equivalent
-    # output without touching .pyi stubs.
+    # It reads __init__.pyi stubs and generates a second attribute description
+    # for every re-exported dataclass field, causing unsuppressable
+    # "duplicate object description" warnings in Sphinx 9.
 ]
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
@@ -102,7 +100,9 @@ autodoc_default_options = {
     "undoc-members": False,
     "show-inheritance": True,
     "member-order": "bysource",
-    "special-members": "__init__",
+    # __init__ is NOT listed globally: for non-dataclass classes that have a
+    # documented __init__ it is added back explicitly per RST file (e.g.
+    # PromptGuard in api/core.rst).
     "exclude-members": "__weakref__",
 }
 
