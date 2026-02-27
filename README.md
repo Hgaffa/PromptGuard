@@ -4,7 +4,7 @@ A Python library for detecting malicious LLM prompts and prompt injection attack
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
-[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://hgaffa.github.io/promptguard/)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://hgaffa.github.io/PromptGuard/index.html)
 
 ## Features
 
@@ -237,7 +237,7 @@ mypy promptguard
 
 ## Links
 
-- [Documentation](https://hgaffa.github.io/promptguard/)
+- [Documentation](https://hgaffa.github.io/PromptGuard/index.html)
 - [PyPI Package](https://pypi.org/project/promptguard/) (coming soon)
 - [Model on HuggingFace](https://huggingface.co/arkaean/promptguard-distilbert)
 - [Issue Tracker](https://github.com/Hgaffa/promptguard/issues)
