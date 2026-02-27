@@ -17,14 +17,19 @@ version = "0.1.0"
 # ── Extensions ─────────────────────────────────────────────────────────────────
 
 extensions = [
-    "sphinx.ext.autodoc",        # Auto-generate docs from docstrings
-    "sphinx.ext.napoleon",       # Google / NumPy style docstrings
-    "sphinx.ext.viewcode",       # [source] links on API pages
-    "sphinx.ext.intersphinx",    # Cross-link to Python standard library
-    "sphinx_copybutton",         # Copy button on code blocks
-    "sphinx_autodoc_typehints",  # Render type hints in API docs
-    "sphinx_design",             # Grid cards on the landing page
-    "myst_parser",               # Markdown support
+    "sphinx.ext.autodoc",    # Auto-generate docs from docstrings
+    "sphinx.ext.napoleon",   # Google / NumPy style docstrings
+    "sphinx.ext.viewcode",   # [source] links on API pages
+    "sphinx.ext.intersphinx",# Cross-link to Python standard library
+    "sphinx_copybutton",     # Copy button on code blocks
+    "sphinx_design",         # Grid cards on the landing page
+    "myst_parser",           # Markdown support
+    # NOTE: sphinx_autodoc_typehints is intentionally omitted.
+    # Its dataclass support reads __init__.pyi stubs and generates a second
+    # attribute description for every re-exported dataclass field, causing
+    # unsuppressable "duplicate object description" warnings in Sphinx 9.
+    # Sphinx's built-in autodoc_typehints = "description" gives equivalent
+    # output without touching .pyi stubs.
 ]
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
@@ -101,9 +106,10 @@ autodoc_default_options = {
     "exclude-members": "__weakref__",
 }
 
+# Built-in type-hint rendering — puts types in the description section.
+# Does NOT read .pyi stubs, avoiding duplicate attribute descriptions.
 autodoc_typehints = "description"
 autodoc_typehints_description_target = "documented"
-always_document_param_types = False
 
 # ── napoleon ───────────────────────────────────────────────────────────────────
 
@@ -114,16 +120,8 @@ napoleon_include_private_with_doc = False
 napoleon_use_admonition_for_examples = False
 napoleon_use_admonition_for_notes = True
 napoleon_use_admonition_for_references = False
-napoleon_use_rtype = False        # Types shown inline via typehints
+napoleon_use_rtype = False
 napoleon_preprocess_types = True
-
-# ── warnings ──────────────────────────────────────────────────────────────────
-# sphinx_autodoc_typehints reads __init__.pyi stubs for type information. This
-# causes Sphinx to see dataclass fields documented twice — once from the explicit
-# autoclass:: directives in our RST files, and once from the stub. The second
-# description is identical and harmless; suppress the warning so -W doesn't
-# fail the build.
-suppress_warnings = ["py.duplicate"]
 
 # ── copybutton ─────────────────────────────────────────────────────────────────
 
