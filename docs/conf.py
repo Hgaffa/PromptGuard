@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.abspath(".."))
 # ── Project information ────────────────────────────────────────────────────────
 
 project = "PromptGuard"
-copyright = "2024, Hasanain Ghafoor"
+copyright = "2026, Hasanain Ghafoor"
 author = "Hasanain Ghafoor"
 release = "0.1.0"
 version = "0.1.0"
@@ -116,6 +116,14 @@ napoleon_use_admonition_for_notes = True
 napoleon_use_admonition_for_references = False
 napoleon_use_rtype = False        # Types shown inline via typehints
 napoleon_preprocess_types = True
+
+# ── warnings ──────────────────────────────────────────────────────────────────
+# sphinx_autodoc_typehints reads __init__.pyi stubs for type information. This
+# causes Sphinx to see dataclass fields documented twice — once from the explicit
+# autoclass:: directives in our RST files, and once from the stub. The second
+# description is identical and harmless; suppress the warning so -W doesn't
+# fail the build.
+suppress_warnings = ["py.duplicate"]
 
 # ── copybutton ─────────────────────────────────────────────────────────────────
 
