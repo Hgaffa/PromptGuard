@@ -40,10 +40,18 @@ dev = [
     "mypy>=1.0.0",
     "pre-commit>=3.0.0",
 ]
+docs = [
+    "sphinx>=7.3.0",
+    "furo>=2024.1.29",
+    "sphinx-copybutton>=0.5.2",
+    "sphinx-autodoc-typehints>=2.0.0",
+    "myst-parser>=3.0.0",
+    "sphinx-autosummary-accessors>=2023.4.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/Hgaffa/promptguard"
-Documentation = "https://github.com/Hgaffa/promptguard#readme"
+Documentation = "https://hgaffa.github.io/promptguard/"
 Repository = "https://github.com/Hgaffa/promptguard"
 "Bug Tracker" = "https://github.com/Hgaffa/promptguard/issues"
 

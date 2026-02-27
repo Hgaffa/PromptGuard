@@ -1,0 +1,33 @@
+/* PromptGuard — custom Furo overrides
+   Kept minimal: only spacing, code-block adjustments, and card tweaks.
+*/
+
+/* Slightly tighter sidebar font for long module names */
+.sidebar-tree .reference {
+    font-size: 0.875rem;
+}
+
+/* Give inline code a subtle background in light mode */
+:root {
+    --color-inline-code-background: rgba(37, 99, 235, 0.06);
+}
+
+/* Dark mode inline code */
+[data-theme="dark"] {
+    --color-inline-code-background: rgba(96, 165, 250, 0.1);
+}
+
+/* Reduce top padding on the content area slightly */
+.bd-content {
+    padding-top: 1.5rem;
+}
+
+/* Make grid cards uniform height */
+.sd-card {
+    height: 100%;
+}
+
+/* Subtle border on admonition blocks */
+.admonition {
+    border-left-width: 3px;
+}
