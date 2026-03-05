@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "promptguard"
-version = "0.1.0"
+name = "promptguard-ml"
+version = "0.1.1"
 description = "A production-ready library for detecting malicious LLM prompts and prompt injection attacks"
 readme = "README.md"
 requires-python = ">=3.12"

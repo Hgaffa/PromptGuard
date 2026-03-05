@@ -2,13 +2,14 @@
 
 A Python library for detecting malicious LLM prompts and prompt injection attacks.
 
+[![PyPI version](https://img.shields.io/pypi/v/promptguard-ml.svg)](https://pypi.org/project/promptguard-ml/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://hgaffa.github.io/PromptGuard/index.html)
 
 ## Features
 
-- **High accuracy** — 97.5% F1-score on prompt injection detection
+- **High accuracy** — 97.8% F1-score on prompt injection detection
 - **Fast inference** — ~13ms per prompt on GPU, <1ms for cached prompts
 - **Detailed analysis** — sentiment, intent classification, keyword extraction, and attack-pattern detection
 - **Prompt sanitisation** — three configurable strategies (conservative, balanced, minimal)
@@ -19,20 +20,20 @@ A Python library for detecting malicious LLM prompts and prompt injection attack
 ## Installation
 
 ```bash
-pip install promptguard
+pip install promptguard-ml
 ```
 
 For enhanced keyword extraction (uses spaCy):
 
 ```bash
-pip install "promptguard[nlp]"
+pip install "promptguard-ml[nlp]"
 python -m spacy download en_core_web_sm
 ```
 
 For all optional features (spaCy + pandas DataFrame export):
 
 ```bash
-pip install "promptguard[full]"
+pip install "promptguard-ml[full]"
 ```
 
 ## Quick Start
@@ -218,8 +219,8 @@ disable_transformers_logging()   # suppress noisy HuggingFace output
 ## Model
 
 - **Architecture**: DistilBERT (fine-tuned for sequence classification)
-- **Training data**: 40 000 labelled prompts
-- **F1-score**: 0.975 — **ROC-AUC**: 0.994 — **Recall**: 97.24%
+- **Training data**: 35,264-sample class-balanced dataset (downsampled from 52,381 raw samples across 15 sources to achieve 1:1 class balance) with a stratified random train/val/test split
+- **F1-score**: 0.978 — **ROC-AUC**: 0.997 — **Recall**: 0.975
 - **Hosted on**: [HuggingFace Hub](https://huggingface.co/arkaean/promptguard-distilbert)
 
 ## Development
@@ -244,6 +245,6 @@ mypy promptguard
 ## Links
 
 - [Documentation](https://hgaffa.github.io/PromptGuard/index.html)
-- [PyPI Package](https://pypi.org/project/promptguard/)
+- [PyPI Package](https://pypi.org/project/promptguard-ml/)
 - [Model on HuggingFace](https://huggingface.co/arkaean/promptguard-distilbert)
 - [Issue Tracker](https://github.com/Hgaffa/promptguard/issues)
