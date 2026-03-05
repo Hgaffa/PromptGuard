@@ -22,11 +22,17 @@ A Python library for detecting malicious LLM prompts and prompt injection attack
 pip install promptguard
 ```
 
-For optional enhanced keyword extraction (uses spaCy):
+For enhanced keyword extraction (uses spaCy):
 
 ```bash
-pip install promptguard
+pip install "promptguard[nlp]"
 python -m spacy download en_core_web_sm
+```
+
+For all optional features (spaCy + pandas DataFrame export):
+
+```bash
+pip install "promptguard[full]"
 ```
 
 ## Quick Start
@@ -238,6 +244,6 @@ mypy promptguard
 ## Links
 
 - [Documentation](https://hgaffa.github.io/PromptGuard/index.html)
-- [PyPI Package](https://pypi.org/project/promptguard/) (coming soon)
+- [PyPI Package](https://pypi.org/project/promptguard/)
 - [Model on HuggingFace](https://huggingface.co/arkaean/promptguard-distilbert)
 - [Issue Tracker](https://github.com/Hgaffa/promptguard/issues)

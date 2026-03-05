@@ -287,7 +287,7 @@ class PromptGuard:
             logger.error(error_msg)
             raise InferenceError(error_msg) from e
 
-    def clear_cache(self):
+    def clear_cache(self) -> None:
         """
         Clear the analysis cache
         """
@@ -550,7 +550,8 @@ class PromptGuard:
         """
 
         results = self.analyze_batch(prompts, show_progress=show_progress)
-        threshold = threshold or self.config.threshold
+        if threshold is None:
+            threshold = self.config.threshold
 
         return [
             result.probability >= threshold if result is not None else None

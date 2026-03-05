@@ -5,7 +5,7 @@ import numpy as np
 from .schemas import RiskScore
 
 
-def summarize_results(results: List[RiskScore]) -> Dict[str, Any]:
+def summarize_results(results: List[Optional[RiskScore]]) -> Dict[str, Any]:
     """
     Summarize a list of analysis results.
 
@@ -49,10 +49,10 @@ def summarize_results(results: List[RiskScore]) -> Dict[str, Any]:
         "malicious_count": len(malicious),
         "benign_count": len(benign),
         "malicious_percentage": (len(malicious) / len(valid_results) * 100),
-        "avg_probability": np.mean(probabilities),
-        "min_probability": np.min(probabilities),
-        "max_probability": np.max(probabilities),
-        "std_probability": np.std(probabilities),
+        "avg_probability": float(np.mean(probabilities)),
+        "min_probability": float(np.min(probabilities)),
+        "max_probability": float(np.max(probabilities)),
+        "std_probability": float(np.std(probabilities)),
         "high_risk_count": risk_counts["high"],
         "medium_risk_count": risk_counts["medium"],
         "low_risk_count": risk_counts["low"]
@@ -60,7 +60,7 @@ def summarize_results(results: List[RiskScore]) -> Dict[str, Any]:
 
 
 def filter_by_risk_level(
-    results: List[RiskScore],
+    results: List[Optional[RiskScore]],
     risk_level: str
 ) -> List[RiskScore]:
     """
@@ -80,7 +80,7 @@ def filter_by_risk_level(
 
 
 def get_most_dangerous(
-    results: List[RiskScore],
+    results: List[Optional[RiskScore]],
     top_n: int = 10
 ) -> List[RiskScore]:
     """

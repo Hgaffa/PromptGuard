@@ -9,7 +9,7 @@ def setup_logging(
     level: str = "INFO",
     format_string: Optional[str] = None,
     include_timestamp: bool = True
-):
+) -> None:
     """
     Configure logging for PromptGuard.
     """
@@ -34,7 +34,7 @@ def setup_logging(
     logger.info("Logging configured at %s level", level)
 
 
-def disable_transformers_logging():
+def disable_transformers_logging() -> None:
     """Suppress verbose transformers library logging."""
     logging.getLogger("transformers").setLevel(logging.ERROR)
     logging.getLogger("transformers.modeling_utils").setLevel(logging.ERROR)
