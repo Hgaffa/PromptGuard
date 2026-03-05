@@ -1,6 +1,6 @@
 """PromptGuard: production-ready library for detecting malicious LLM prompts."""
 
-__version__ = "0.1.2"
+__version__ = "0.1.1"
 __author__ = "Hasanain Ghafoor"
 __email__ = "hgaffa@gmail.com"
 
