@@ -21,126 +21,171 @@ Reference for publishing new versions of **promptguard-ml** to PyPI.
 
 Follow [Semantic Versioning](https://semver.org/):
 
-- **PATCH** (`0.1.0` → `0.1.1`) — bug fixes, no API changes
-- **MINOR** (`0.1.0` → `0.2.0`) — new backwards-compatible features
-- **MAJOR** (`0.1.0` → `1.0.0`) — breaking API changes
+- **PATCH** (`0.1.1` → `0.1.2`) — bug fixes, no API changes
+- **MINOR** (`0.1.1` → `0.2.0`) — new backwards-compatible features
+- **MAJOR** (`0.1.1` → `1.0.0`) — breaking API changes
 
 ---
 
-## Step-by-step release process
+## Automated release (recommended)
 
-### 1. Work on a release branch (optional but recommended)
+A GitHub Actions workflow (`.github/workflows/release.yml`) handles everything
+automatically — tests, lint, type-check, build, PyPI publish, and GitHub Release.
+
+### One-time setup (do this once)
+
+**Step 1 — Create a GitHub environment called `release`:**
+
+> Repo → Settings → Environments → New environment → name it **`release`**
+
+Optionally add a *Required reviewers* protection rule so you must manually
+approve each PyPI publish before it goes live.
+
+**Step 2 — Register a Trusted Publisher on PyPI (no API token required):**
+
+> pypi.org → *promptguard-ml* → Manage → Publishing → Add a publisher
+
+| Field | Value |
+|-------|-------|
+| Publisher | GitHub Actions |
+| Owner | your GitHub username |
+| Repository | your repo name |
+| Workflow name | `release.yml` |
+| Environment | `release` |
+
+No secrets to store anywhere — PyPI verifies the workflow identity via OIDC.
+
+### Triggering a release
+
+1. Bump the versions in `pyproject.toml` and `__init__.py` then update the `CHANGELOG.md`.
+2. Commit and tag:
+
 ```bash
-git checkout -b release/0.2.0
+git add pyproject.toml promptguard/__init__.py CHANGELOG.md
+git commit -m "chore: release 0.1.2"
+git tag -a v0.1.2 -m "Release 0.1.2"
+git push origin main
+git push origin v0.1.2
 ```
 
-### 2. Bump the version in two places
-```bash
-# pyproject.toml  →  version = "0.2.0"
-# promptguard/__init__.py  →  __version__ = "0.2.0"
+The workflow starts automatically and:
+
+| Step | What happens |
+|------|-------------|
+| **test** | Runs pytest, black, flake8, mypy (HuggingFace model is cached between runs) |
+| **build** | Verifies tag version matches `pyproject.toml`, builds sdist + wheel, runs `twine check` |
+| **publish** | Uploads to PyPI via OIDC — no token needed |
+| **github-release** | Creates a GitHub Release with the wheel, sdist, and your CHANGELOG notes |
+
+Monitor progress at: `https://github.com/<you>/<repo>/actions`
+
+---
+
+## Manual release (fallback)
+
+Use this if you need to publish from your local machine.
+
+### 1. Bump the version in two places
+
+```
+pyproject.toml          →   version = "0.1.2"
+promptguard/__init__.py →   __version__ = "0.1.2"
 ```
 
-### 3. Update CHANGELOG.md
-Add a new section at the top:
+### 2. Update CHANGELOG.md
+
+Add a new section at the top (below the header):
+
 ```markdown
-## [0.2.0] - YYYY-MM-DD
-
-### Added
-- ...
+## [0.1.2] - YYYY-MM-DD
 
 ### Fixed
 - ...
 
-### Changed
+### Added
 - ...
 ```
 
-### 4. Run the full test suite
+### 3. Run tests and linters
+
 ```bash
 pip install -e ".[dev]"
 pytest
-```
-All tests must pass and coverage must be ≥ 85%.
-
-### 5. Lint and type-check
-```bash
 black --check promptguard tests
 flake8 promptguard tests
 mypy promptguard
 ```
 
-### 6. Commit and tag
+### 4. Commit and tag
+
 ```bash
 git add pyproject.toml promptguard/__init__.py CHANGELOG.md
-git commit -m "chore: release 0.2.0"
-git tag -a v0.2.0 -m "Release 0.2.0"
-git push origin release/0.2.0
-git push origin v0.2.0
+git commit -m "chore: release 0.1.2"
+git tag -a v0.1.2 -m "Release 0.1.2"
+git push origin main
+git push origin v0.1.2
 ```
 
-### 7. Clean previous build artefacts
+### 5. Clean old build artefacts
+
 ```bash
-rm -rf dist/ build/ promptguard.egg-info/
-# On Windows:
-# Remove-Item -Recurse -Force dist, build, promptguard.egg-info
+# Linux/macOS
+rm -rf dist/ build/ promptguard_ml.egg-info/
+
+# Windows (PowerShell)
+Remove-Item -Recurse -Force dist, build, promptguard_ml.egg-info
 ```
 
-### 8. Build
+### 6. Build
+
 ```bash
 pip install build
 python -m build
 ```
-This produces:
-- `dist/promptguard_ml-0.2.0.tar.gz`  (source distribution)
-- `dist/promptguard_ml-0.2.0-py3-none-any.whl`  (wheel)
 
-### 9. Validate the distributions
+Produces:
+- `dist/promptguard_ml-0.1.2.tar.gz`
+- `dist/promptguard_ml-0.1.2-py3-none-any.whl`
+
+### 7. Validate
+
 ```bash
 pip install twine
 twine check dist/*
+# Both must print PASSED
 ```
-Both must print `PASSED`.
 
-### 10. Test publish to TestPyPI (dry run)
+### 8. Upload to TestPyPI (optional dry run)
+
 ```bash
 twine upload --repository testpypi dist/*
-# Username: __token__
-# Password: <TestPyPI API token>
 ```
-Verify at https://test.pypi.org/project/promptguard-ml/
 
 Test install:
 ```bash
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ promptguard-ml
+pip install --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            promptguard-ml
 ```
-(The `--extra-index-url` is needed because the heavy deps like torch are not on TestPyPI.)
 
-### 11. Publish to production PyPI
+### 9. Upload to production PyPI
+
 ```bash
 twine upload dist/*
-# Username: __token__
-# Password: <PyPI API token>
 ```
 
-### 12. Verify the release
+### 10. Verify
+
 ```bash
 pip install --upgrade promptguard-ml
 python -c "import promptguard; print(promptguard.__version__)"
 ```
 
-### 13. Merge back and create GitHub release (optional)
-```bash
-git checkout main
-git merge release/0.2.0
-git push origin main
-```
-Then create a GitHub Release from the `v0.2.0` tag, pasting the CHANGELOG entry as the description.
-
 ---
 
-## Credentials
+## Storing credentials (avoid re-typing tokens)
 
-Store API tokens in `~/.pypirc` so you never have to type them:
+Create `~/.pypirc`:
 
 ```ini
 [distutils]
@@ -159,37 +204,32 @@ username = __token__
 password = pypi-<your-testpypi-token>
 ```
 
-With this in place, `twine upload dist/*` uses the stored token automatically.
-
 ---
 
-## Fixing a bad release (post-upload)
+## Fixing a bad release
 
-PyPI does **not** allow re-uploading a file for the same version. Your options:
+PyPI does **not** allow re-uploading a file for the same version.
 
 | Situation | Action |
 |-----------|--------|
-| Broken wheel, same version | Yank the release on PyPI (marks it as broken without removing it), then release a patch version |
-| Minor mistake in metadata only | Release a patch version (`0.1.1`) |
+| Broken wheel, same version | Yank the release, then publish a patch version |
+| Minor metadata mistake | Publish a patch version |
 | Security issue | Yank immediately, release patch ASAP |
 
-To yank a release: PyPI project page → Your Release → ⋮ menu → *Yank release*.
+To yank: PyPI project page → the release → ⋮ menu → *Yank release*.
 
 ---
 
-## Checklist (copy for each release)
+## Release checklist
+
+Copy this for each release:
 
 ```
 [ ] Version bumped in pyproject.toml
 [ ] Version bumped in promptguard/__init__.py
-[ ] CHANGELOG.md updated
-[ ] pytest passes, coverage ≥ 85%
-[ ] black / flake8 / mypy clean
-[ ] dist/ cleaned, python -m build run
-[ ] twine check dist/* → PASSED
-[ ] TestPyPI upload + install verified
-[ ] Production PyPI upload
-[ ] pip install --upgrade verified
-[ ] Git tag pushed
-[ ] GitHub Release created (optional)
+[ ] CHANGELOG.md updated with new section
+[ ] All changes committed
+[ ] Tag pushed  →  workflow triggers automatically
+[ ] GitHub Actions run passes (Actions tab)
+[ ] pip install --upgrade promptguard-ml shows new version
 ```
