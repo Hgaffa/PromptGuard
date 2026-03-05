@@ -10,7 +10,7 @@ A Python library for detecting malicious LLM prompts and prompt injection attack
 ## Features
 
 - **High accuracy** — 97.8% F1-score on prompt injection detection
-- **Fast inference** — ~13ms per prompt on GPU, <1ms for cached prompts
+- **Fast inference** — ~12ms per prompt on GPU, <1ms for cached prompts
 - **Detailed analysis** — sentiment, intent classification, keyword extraction, and attack-pattern detection
 - **Prompt sanitisation** — three configurable strategies (conservative, balanced, minimal)
 - **Batch processing** — efficient batched inference with optional progress bar
